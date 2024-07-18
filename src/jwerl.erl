@@ -1,6 +1,6 @@
 -module(jwerl).
 
--export([sign/1, sign/2, sign/3,
+-export([sign/1, sign/2, sign/3, sign/4,
          verify/1, verify/2, verify/3, verify/4, verify/5,
          header/1]).
 
@@ -44,7 +44,11 @@ sign(Data, Algorithm) ->
 % @end
 -spec sign(Data :: map() | list(), Algorithm :: algorithm(), KeyOrPem :: binary()) -> binary().
 sign(Data, Algorithm, KeyOrPem) when (is_map(Data) orelse is_list(Data)), is_atom(Algorithm), is_binary(KeyOrPem) ->
-    encode(jsx:encode(Data), config_headers(#{alg => algorithm_to_binary(Algorithm)}), KeyOrPem).
+    sign(Data, Algorithm, KeyOrPem, #{}).
+
+-spec sign(Data :: map() | list(), Algorithm :: algorithm(), KeyOrPem :: binary(), Options :: map()) -> binary().
+sign(Data, Algorithm, KeyOrPem, Options) when (is_map(Data) orelse is_list(Data)), is_atom(Algorithm), is_binary(KeyOrPem), is_map(Options) ->
+    encode(jsx:encode(Data), config_headers(Options#{alg => algorithm_to_binary(Algorithm)}), KeyOrPem).
 
 % @equiv verify(Data, <<"">>, hs256, #{}, #{})
 verify(Data) ->
