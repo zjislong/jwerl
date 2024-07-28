@@ -10,7 +10,14 @@ sign(ShaBits, Key, Data) ->
                        [ECPrivateKeyPem] -> ECPrivateKeyPem
                      end,
   ECPrivateKey = public_key:pem_entry_decode(ECPrivateKeyPem1),
-  public_key:sign(Data, algo(ShaBits), ECPrivateKey).
+  DERSignature = public_key:sign(Message, algo(ShaBits), ECPrivateKey),
+  #'ECDSA-Sig-Value'{r = R, s = S} = public_key:der_decode('ECDSA-Sig-Value', DERSignature),
+  RBin = int_to_bin(R),
+  SBin = int_to_bin(S),
+  Size = ShaBits/8,
+  RPad = pad(RBin, Size),
+  SPad = pad(SBin, Size),
+  Signature = <<RPad/binary, SPad/binary>>.
 
 verify(ShaBits, Key, Data, Signature) ->
   [SPKI] = public_key:pem_decode(Key),
@@ -29,3 +36,21 @@ verify(ShaBits, Key, Data, Signature) ->
 algo(256) -> sha256;
 algo(384) -> sha384;
 algo(512) -> sha512.
+
+int_to_bin(X) when X < 0 -> int_to_bin_neg(X, []);
+int_to_bin(X) -> int_to_bin_pos(X, []).
+
+int_to_bin_pos(0, Ds = [_ | _]) ->
+    list_to_binary(Ds);
+int_to_bin_pos(X, Ds) ->
+    int_to_bin_pos(X bsr 8, [(X band 255) | Ds]).
+
+int_to_bin_neg(-1, Ds = [MSB | _]) when MSB >= 16#80 ->
+    list_to_binary(Ds);
+int_to_bin_neg(X, Ds) ->
+    int_to_bin_neg(X bsr 8, [(X band 255) | Ds]).
+
+pad(Bin, Size) when byte_size(Bin) =:= Size ->
+    Bin;
+pad(Bin, Size) ->
+    pad(<<0, Bin/binary>>, Size).
