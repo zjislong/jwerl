@@ -10,14 +10,14 @@ sign(ShaBits, Key, Data) ->
                        [ECPrivateKeyPem] -> ECPrivateKeyPem
                      end,
   ECPrivateKey = public_key:pem_entry_decode(ECPrivateKeyPem1),
-  DERSignature = public_key:sign(Message, algo(ShaBits), ECPrivateKey),
+  DERSignature = public_key:sign(Data, algo(ShaBits), ECPrivateKey),
   #'ECDSA-Sig-Value'{r = R, s = S} = public_key:der_decode('ECDSA-Sig-Value', DERSignature),
   RBin = int_to_bin(R),
   SBin = int_to_bin(S),
   Size = ShaBits/8,
   RPad = pad(RBin, Size),
   SPad = pad(SBin, Size),
-  Signature = <<RPad/binary, SPad/binary>>.
+  <<RPad/binary, SPad/binary>>.
 
 verify(ShaBits, Key, Data, Signature) ->
   [SPKI] = public_key:pem_decode(Key),
