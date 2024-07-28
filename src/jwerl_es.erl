@@ -14,7 +14,7 @@ sign(ShaBits, Key, Data) ->
   #'ECDSA-Sig-Value'{r = R, s = S} = public_key:der_decode('ECDSA-Sig-Value', DERSignature),
   RBin = int_to_bin(R),
   SBin = int_to_bin(S),
-  Size = ShaBits/8,
+  Size = r_s_size(ShaBits),
   RPad = pad(RBin, Size),
   SPad = pad(SBin, Size),
   <<RPad/binary, SPad/binary>>.
@@ -36,6 +36,10 @@ verify(ShaBits, Key, Data, Signature) ->
 algo(256) -> sha256;
 algo(384) -> sha384;
 algo(512) -> sha512.
+
+r_s_size(256) -> 32;
+r_s_size(384) -> 48;
+r_s_size(512) -> 66.
 
 int_to_bin(X) when X < 0 -> int_to_bin_neg(X, []);
 int_to_bin(X) -> int_to_bin_pos(X, []).
