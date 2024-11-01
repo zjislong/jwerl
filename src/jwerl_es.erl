@@ -20,18 +20,23 @@ sign(ShaBits, Key, Data) ->
   <<RPad/binary, SPad/binary>>.
 
 verify(ShaBits, Key, Data, Signature) ->
-  [SPKI] = public_key:pem_decode(Key),
-  #'SubjectPublicKeyInfo'{algorithm = Der} = SPKI,
-  RealSPKI = public_key:der_decode('SubjectPublicKeyInfo', Der),
-  #'SubjectPublicKeyInfo'{
-     subjectPublicKey = Octets,
-     algorithm = #'AlgorithmIdentifier'{ parameters = Params}
-    } = RealSPKI,
-  ECPoint = #'ECPoint'{point = Octets},
-  EcpkParametersPem = {'EcpkParameters', Params, not_encrypted},
-  ECParams = public_key:pem_entry_decode(EcpkParametersPem),
-  ECPublicKey = {ECPoint, ECParams},
-  public_key:verify(Data, algo(ShaBits), Signature, ECPublicKey).
+  case public_key:pem_decode(Key) of
+    [{'Certificate',Certificate,_} = SPKI] -> 
+        public_key:pkix_decode_cert( Certificate, otp ),
+        #'Certificate'{tbsCertificate = #'TBSCertificate'{subjectPublicKeyInfo = RealSPKI}} = public_key:pem_entry_decode(SPKI);
+    [{'SubjectPublicKeyInfo',_,_ } = SPKI] -> 
+        #'SubjectPublicKeyInfo'{algorithm = Der} = SPKI,
+        RealSPKI = public_key:der_decode('SubjectPublicKeyInfo', Der)
+  end,
+  #'SubjectPublicKeyInfo'{subjectPublicKey = Key0, algorithm = #'AlgorithmIdentifier'{parameters = Params}} = RealSPKI,
+  ECCParams = public_key:der_decode('EcpkParameters', Params),
+  ECPublicKey = {#'ECPoint'{point = Key0}, ECCParams},
+  SignatureLen= byte_size(Signature),
+  {RBin, SBin}= split_binary(Signature, SignatureLen div 2),
+  R = crypto:bytes_to_integer(RBin),
+  S = crypto:bytes_to_integer(SBin),
+  DERSignature = public_key:der_encode('ECDSA-Sig-Value', #'ECDSA-Sig-Value'{r = R, s = S}),
+  public_key:verify(Data, algo(ShaBits), DERSignature, ECPublicKey).
 
 algo(256) -> sha256;
 algo(384) -> sha384;
