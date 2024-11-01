@@ -196,6 +196,17 @@ encode(Data, Options, Key) ->
   Input = encode_input(Data, Options),
   <<Input/binary, ".", (signature(maps:get(alg, Options), Key, Input))/binary>>.
 
+decode(Data, <<"">>, Algorithm) ->
+  Header  = decode_header(Data),
+  case Header of
+    #{x5c := [Cert|_]} -> 
+        case algorithm_to_atom(maps:get(alg, Header)) of
+          Algorithm -> payload(Data, Algorithm, <<"-----BEGIN CERTIFICATE-----\n", Cert/bytes, "\n-----END CERTIFICATE-----">>);
+          Algorithm1 -> {error, {invalid_algorithm, Algorithm1, Algorithm}}
+        end;
+    _ ->
+        {error, {not_provide_key, Header}}
+  end;
 decode(Data, KeyOrPem, Algorithm) ->
   Header = decode_header(Data),
   case algorithm_to_atom(maps:get(alg, Header)) of
