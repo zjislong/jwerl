@@ -252,7 +252,7 @@ payload(Data, none, _) ->
 payload(Data, Algorithm, <<"">>) ->
   [Header, Data1, Signature] = binary:split(Data, <<".">>, [global]),
   {AlgMod, ShaBits} = algorithm_to_infos(Algorithm),
-  case jsx:decode(base64_decode(Header) of
+  case jsx:decode(base64_decode(Header)) of
     #{<<"x5c">> := [Key|_]} ->
         Key1 = <<"-----BEGIN CERTIFICATE-----\n",Key/bytes,"\n-----END CERTIFICATE-----\n">>,
         case erlang:apply(AlgMod, verify, [ShaBits, Key1, <<Header/binary, ".", Data1/binary>>, base64_decode(Signature)]) of
