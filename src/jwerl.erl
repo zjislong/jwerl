@@ -263,7 +263,7 @@ payload(Data, Algorithm, <<"">>) ->
         end;
     _ ->
         {error, invalid_key}
-  end.
+  end;
 payload(Data, Algorithm, Key) ->
   [Header, Data1, Signature] = binary:split(Data, <<".">>, [global]),
   {AlgMod, ShaBits} = algorithm_to_infos(Algorithm),
