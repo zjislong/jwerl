@@ -249,13 +249,25 @@ decode_header(Data) ->
 payload(Data, none, _) ->
   [_, Data1|_] = binary:split(Data, <<".">>, [global]),
   {ok, jsx:decode(base64_decode(Data1), [return_maps, {labels, attempt_atom}])};
+payload(Data, Algorithm, <<"">>) ->
+  [Header, Data1, Signature] = binary:split(Data, <<".">>, [global]),
+  {AlgMod, ShaBits} = algorithm_to_infos(Algorithm),
+  case jsx:decode(base64_decode(Header) of
+    #{<<"x5c">> := [Key|_]} ->
+        Key1 = <<"-----BEGIN CERTIFICATE-----\n",Key/bytes,"\n-----END CERTIFICATE-----\n">>,
+        case erlang:apply(AlgMod, verify, [ShaBits, Key1, <<Header/binary, ".", Data1/binary>>, base64_decode(Signature)]) of
+          true ->
+            {ok, jsx:decode(base64_decode(Data1), [return_maps, {labels, attempt_atom}])};
+          _ ->
+            {error, invalid_signature}
+        end;
+    _ ->
+        {error, invalid_key}
+  end.
 payload(Data, Algorithm, Key) ->
   [Header, Data1, Signature] = binary:split(Data, <<".">>, [global]),
   {AlgMod, ShaBits} = algorithm_to_infos(Algorithm),
-  case erlang:apply(AlgMod, verify, [ShaBits,
-                                     Key,
-                                     <<Header/binary, ".", Data1/binary>>,
-                                     base64_decode(Signature)]) of
+  case erlang:apply(AlgMod, verify, [ShaBits, Key, <<Header/binary, ".", Data1/binary>>, base64_decode(Signature)]) of
     true ->
       {ok, jsx:decode(base64_decode(Data1), [return_maps, {labels, attempt_atom}])};
     _ ->
